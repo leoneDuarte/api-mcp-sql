@@ -1,0 +1,39 @@
+{
+  "name": "bot-sonax-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18",
+    "npm": ">=9"
+  },
+  "packageManager": "npm@10",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec \"node --loader ts-node/esm src/server.ts\"",
+    "dev:mcp": "node --loader ts-node/esm src/dev/mockMcpServer.ts",
+    "dev:rest": "node --loader ts-node/esm src/dev/mockRestApi.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "format": "prettier -w ."
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.6.2",
+    "pino": "^9.3.2",
+    "pino-http": "^10.4.0",
+    "undici": "^5.28.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.13.10",
+    "@vercel/node": "^3.2.27",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.4.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
