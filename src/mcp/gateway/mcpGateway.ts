@@ -61,7 +61,7 @@ export async function handleMcpGatewayRequest(integrationId: string, body: unkno
       tools: (integration.tools ?? []).map((t: any) => ({
         name: t.name,
         description: t.description,
-        inputSchema: t.inputSchema
+        inputSchema: t.inputSchema ?? { type: 'object', properties: {} }
       }))
     });
   }
