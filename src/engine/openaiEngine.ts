@@ -72,7 +72,10 @@ export class OpenAiEngine {
       tools,
       instructions,
       previous_response_id: previousResponseId ?? undefined,
-      input: input.message,
+      input: [
+        { type: 'input_text', text: 'json' },
+        { type: 'input_text', text: input.message }
+      ],
       metadata: {
         clientId: input.clientId,
         assistantId: input.assistantId,
@@ -196,7 +199,7 @@ async function createOpenAiResponse(input: {
   instructions: string;
   tools: any[];
   previous_response_id?: string;
-  input: string;
+  input: any;
   metadata?: Record<string, string>;
 }): Promise<ResponsesCreateResult> {
   const body: any = {
@@ -254,4 +257,3 @@ function safeParseJson(text: string) {
     throw new Error('Failed to parse model JSON');
   }
 }
-
