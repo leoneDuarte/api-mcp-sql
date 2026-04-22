@@ -56,6 +56,15 @@ export class OpenAiEngine {
     const currentStep = (input.conversation.currentStep ?? null) as string | null;
     const previousResponseId = typeof variables.openai_previous_response_id === 'string' ? variables.openai_previous_response_id : null;
 
+    await logAction({
+      conversationId: input.conversation._id,
+      action: 'engine_state_before',
+      payload: {
+        currentStep,
+        variables
+      }
+    });
+
     const tools = buildMcpTools(input.assistant.mcpServers ?? []);
 
     const instructions = buildInstructions({
@@ -108,11 +117,27 @@ export class OpenAiEngine {
     const newVariables = { ...variables, ...out.setVariables, openai_previous_response_id: response.id };
     const newStep = out.currentStep ?? currentStep;
 
+    await logAction({
+      conversationId: input.conversation._id,
+      action: 'engine_decision',
+      payload: {
+        responses: out.responses,
+        setVariables: out.setVariables,
+        currentStep: newStep
+      }
+    });
+
     for (const text of out.responses) {
       await appendHistory(input.conversation._id, {
         role: 'assistant',
         message: text,
         timestamp: new Date()
+      });
+
+      await logAction({
+        conversationId: input.conversation._id,
+        action: 'assistant_message',
+        payload: { message: text }
       });
     }
 
@@ -120,6 +145,15 @@ export class OpenAiEngine {
       conversationId: input.conversation._id,
       currentStep: newStep,
       variables: newVariables
+    });
+
+    await logAction({
+      conversationId: input.conversation._id,
+      action: 'engine_state_after',
+      payload: {
+        currentStep: newStep,
+        variables: newVariables
+      }
     });
 
     return {
