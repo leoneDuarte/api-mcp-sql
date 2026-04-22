@@ -16,3 +16,17 @@ export async function logAction(input: {
   });
 }
 
+export async function listLogs(input: {
+  conversationId: string;
+  limit?: number;
+  order?: 'asc' | 'desc';
+}) {
+  const limit = input.limit ?? 100;
+  const sort = input.order === 'asc' ? 1 : -1;
+
+  return LogModel.find({ conversationId: new Types.ObjectId(input.conversationId) })
+    .sort({ timestamp: sort })
+    .limit(limit)
+    .lean()
+    .exec();
+}

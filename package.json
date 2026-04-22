@@ -14,6 +14,7 @@
     "dev:rest": "node --loader ts-node/esm src/dev/mockRestApi.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "e2e": "node scripts/e2e.mjs",
     "format": "prettier -w ."
   },
   "dependencies": {

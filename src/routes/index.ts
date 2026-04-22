@@ -3,6 +3,7 @@ import { messageRouter } from './message.js';
 import { assistantsRouter } from './assistants.js';
 import { integrationsRouter } from './integrations.js';
 import { mcpGatewayRouter } from './mcpGateway.js';
+import { adminRouter } from './admin.js';
 import { errorHandler } from '../middlewares/errorHandler.js';
 
 export function registerRoutes(app: Express) {
@@ -10,6 +11,7 @@ export function registerRoutes(app: Express) {
   app.use(assistantsRouter);
   app.use(integrationsRouter);
   app.use(mcpGatewayRouter);
+  app.use(adminRouter);
   app.use(messageRouter);
   app.use(errorHandler);
 }
