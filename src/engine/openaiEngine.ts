@@ -206,7 +206,8 @@ async function createOpenAiResponse(input: {
     input: input.input,
     text: { format: { type: 'json_object' } },
     parallel_tool_calls: true,
-    max_tool_calls: 20
+    max_tool_calls: 20,
+    tool_choice: input.tools && input.tools.length > 0 ? 'required' : 'none'
   };
   if (input.previous_response_id) body.previous_response_id = input.previous_response_id;
   if (input.metadata) body.metadata = input.metadata;
