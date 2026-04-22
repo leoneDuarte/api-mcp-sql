@@ -44,6 +44,11 @@ export async function getAssistant(req: Request, res: Response) {
   res.json(safeAssistant(assistant));
 }
 
+export async function listAssistants(_req: Request, res: Response) {
+  const docs = await AssistantModel.find({}).sort({ createdAt: -1 }).lean();
+  res.json(docs.map(safeAssistant));
+}
+
 function safeAssistant(doc: any) {
   if (!doc) return doc;
   const copy = { ...doc };

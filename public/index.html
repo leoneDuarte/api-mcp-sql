@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bot-sonax-mcp — Console</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #121a33;
+        --muted: #9aa7c7;
+        --text: #e8eeff;
+        --border: #22305a;
+        --accent: #7aa2ff;
+        --danger: #ff6b6b;
+        --ok: #41d18b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji",
+          "Segoe UI Emoji";
+        background: radial-gradient(1200px 800px at 20% 0%, #17214a 0%, var(--bg) 60%);
+        color: var(--text);
+      }
+      header {
+        padding: 18px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(8px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+      }
+      header .sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 980px) {
+        main { grid-template-columns: 1fr; }
+      }
+      .card {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 14px;
+      }
+      label { display: block; margin: 10px 0 6px; color: var(--muted); font-size: 12px; }
+      input, textarea, select, button {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(8, 12, 26, 0.6);
+        color: var(--text);
+        padding: 10px 12px;
+        outline: none;
+      }
+      textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      button {
+        cursor: pointer;
+        background: linear-gradient(180deg, rgba(122, 162, 255, 0.22), rgba(122, 162, 255, 0.12));
+        border-color: rgba(122, 162, 255, 0.32);
+        font-weight: 600;
+      }
+      button.secondary {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+        font-weight: 600;
+      }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+      .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.35; }
+      .status { margin-top: 10px; font-size: 12px; color: var(--muted); }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--danger); white-space: pre-wrap; }
+      pre {
+        margin: 12px 0 0;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.25);
+        overflow: auto;
+        max-height: 360px;
+      }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        font-size: 11px;
+        margin-left: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>bot-sonax-mcp — Console <span class="pill">simple front</span></h1>
+      <div class="sub">Crie integrations (HTTP → MCP), crie assistants e teste /message + logs.</div>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Config</h2>
+        <label>Base URL da API</label>
+        <input id="baseUrl" />
+        <label>ADMIN_TOKEN (opcional, para /admin/logs)</label>
+        <input id="adminToken" placeholder="x-admin-token" />
+        <div class="row">
+          <button id="btnHealth" class="secondary">Testar /health</button>
+          <button id="btnRefresh" class="secondary">Recarregar listas</button>
+        </div>
+        <div id="statusConfig" class="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>Integration (tools HTTP → MCP)</h2>
+        <div class="row">
+          <div>
+            <label>Nome</label>
+            <input id="integrationName" placeholder="minha-integracao" />
+          </div>
+          <div>
+            <label>Base URL</label>
+            <input id="integrationBaseUrl" placeholder="https://httpbin.org" />
+          </div>
+        </div>
+        <label>Tools (JSON array)</label>
+        <textarea id="integrationTools"></textarea>
+        <button id="btnCreateIntegration">Criar integration</button>
+        <div id="statusIntegration" class="status"></div>
+        <pre><code id="outIntegration"></code></pre>
+        <div class="hint">
+          Dica: a tool deve ter <code>name</code>, <code>method</code>, <code>path</code>. Pode usar templates como
+          <code>{{cpf}}</code> em <code>path/query/body</code>.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Assistant (flow + MCP tools)</h2>
+        <label>Assistants existentes</label>
+        <select id="assistantsSelect"></select>
+        <div class="row">
+          <button id="btnUseAssistant" class="secondary">Usar selecionado</button>
+          <button id="btnListAssistants" class="secondary">Listar assistants</button>
+        </div>
+        <div class="row">
+          <div>
+            <label>Nome</label>
+            <input id="assistantName" placeholder="Assistente Fluxo" />
+          </div>
+          <div>
+            <label>IntegrationId (para server_url MCP)</label>
+            <input id="assistantIntegrationId" placeholder="ObjectId da integration" />
+          </div>
+        </div>
+        <label>Prompt</label>
+        <textarea id="assistantPrompt"></textarea>
+        <label>Allowed tools (csv)</label>
+        <input id="assistantAllowedTools" placeholder="httpbin_get,httpbin_anything" />
+        <button id="btnCreateAssistant">Criar assistant</button>
+        <div id="statusAssistant" class="status"></div>
+        <pre><code id="outAssistant"></code></pre>
+      </section>
+
+      <section class="card">
+        <h2>Chat (/message)</h2>
+        <div class="row3">
+          <div>
+            <label>clientId</label>
+            <input id="clientId" />
+          </div>
+          <div>
+            <label>assistantId</label>
+            <input id="assistantId" />
+          </div>
+          <div>
+            <label>conversationId</label>
+            <input id="conversationId" />
+          </div>
+        </div>
+        <label>Mensagem</label>
+        <input id="messageText" placeholder="Oi..." />
+        <div class="row">
+          <button id="btnSend">Enviar</button>
+          <button id="btnGetLogs" class="secondary">Ver logs (admin)</button>
+        </div>
+        <div id="statusChat" class="status"></div>
+        <pre><code id="outChat"></code></pre>
+      </section>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const baseUrlEl = $('baseUrl');
+      const adminTokenEl = $('adminToken');
+
+      const statusConfig = $('statusConfig');
+      const statusIntegration = $('statusIntegration');
+      const statusAssistant = $('statusAssistant');
+      const statusChat = $('statusChat');
+
+      function setStatus(el, kind, text) {
+        el.className = 'status ' + (kind === 'ok' ? 'ok' : kind === 'err' ? 'err' : '');
+        el.textContent = text || '';
+      }
+
+      function pretty(obj) {
+        return JSON.stringify(obj, null, 2);
+      }
+
+      function getBase() {
+        const v = baseUrlEl.value.trim().replace(/\/+$/, '');
+        return v || window.location.origin;
+      }
+
+      async function api(method, path, body) {
+        const url = getBase() + path;
+        const headers = { 'content-type': 'application/json' };
+        const adminToken = adminTokenEl.value.trim();
+        if (adminToken && path.startsWith('/admin/')) headers['x-admin-token'] = adminToken;
+        const res = await fetch(url, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined
+        });
+        const text = await res.text();
+        let json = null;
+        try { json = text ? JSON.parse(text) : null; } catch { json = text; }
+        if (!res.ok) throw new Error(`${method} ${path} -> ${res.status}\n${typeof json === 'string' ? json : pretty(json)}`);
+        return json;
+      }
+
+      function seedDefaults() {
+        baseUrlEl.value = localStorage.getItem('baseUrl') || window.location.origin;
+        adminTokenEl.value = localStorage.getItem('adminToken') || '';
+
+        $('integrationName').value = `httpbin-demo-${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`;
+        $('integrationBaseUrl').value = 'https://httpbin.org';
+        $('integrationTools').value = pretty([
+          {
+            name: 'httpbin_get',
+            description: 'GET /get with query params',
+            method: 'GET',
+            path: '/get',
+            query: { cpf: '{{cpf}}', name: '{{name}}' },
+            inputSchema: {
+              type: 'object',
+              properties: { cpf: { type: 'string' }, name: { type: 'string' } },
+              required: ['cpf']
+            }
+          }
+        ]);
+
+        $('assistantName').value = 'Assistente Fluxo Complexo';
+        $('assistantPrompt').value = [
+          'Você é um motor de automação.',
+          'Objetivo: coletar variáveis e, quando atender condições, chamar tools MCP.',
+          '',
+          'Regras:',
+          '1) Se variables.saudadacao_enviada != true: enviar saudação e setVariables.saudadacao_enviada=true.',
+          '2) Se cpf não existir: pedir CPF; ao receber, extrair cpf e setVariables.cpf.',
+          '3) Se nome não existir: pedir nome; ao receber, setVariables.nome.',
+          '4) Se endereco não existir: pedir endereco; ao receber, setVariables.endereco.',
+          '5) Se cpf, nome e endereco preenchidos E variables.dados_buscados != true: chamar MCP httpbin_get com {cpf: {{cpf}}, name: {{nome}}}; setVariables.dados_buscados=true.',
+          '6) Use flags em setVariables para não repetir ações.',
+          '7) Sempre responda em JSON conforme instruções do motor.'
+        ].join('\\n');
+        $('assistantAllowedTools').value = 'httpbin_get';
+
+        $('clientId').value = localStorage.getItem('clientId') || `client-${Math.random().toString(16).slice(2)}`;
+      }
+
+      async function refreshLists() {
+        try {
+          const assistants = await api('GET', '/assistants');
+          const sel = $('assistantsSelect');
+          sel.innerHTML = '';
+          for (const a of assistants) {
+            const opt = document.createElement('option');
+            opt.value = a._id;
+            opt.textContent = `${a.name} — ${a._id}`;
+            sel.appendChild(opt);
+          }
+          setStatus(statusConfig, 'ok', `Carregou ${assistants.length} assistants`);
+        } catch (e) {
+          setStatus(statusConfig, 'err', String(e.message || e));
+        }
+      }
+
+      $('btnHealth').addEventListener('click', async () => {
+        try {
+          localStorage.setItem('baseUrl', baseUrlEl.value.trim());
+          localStorage.setItem('adminToken', adminTokenEl.value.trim());
+          const data = await api('GET', '/health');
+          setStatus(statusConfig, 'ok', '/health OK: ' + pretty(data));
+        } catch (e) {
+          setStatus(statusConfig, 'err', String(e.message || e));
+        }
+      });
+
+      $('btnRefresh').addEventListener('click', refreshLists);
+
+      $('btnCreateIntegration').addEventListener('click', async () => {
+        setStatus(statusIntegration, '', '');
+        $('outIntegration').textContent = '';
+        try {
+          const tools = JSON.parse($('integrationTools').value);
+          const body = {
+            name: $('integrationName').value.trim(),
+            baseUrl: $('integrationBaseUrl').value.trim(),
+            auth: { type: 'none' },
+            tools
+          };
+          const data = await api('POST', '/integrations', body);
+          $('outIntegration').textContent = pretty(data);
+          setStatus(statusIntegration, 'ok', `Integration criada: ${data._id}`);
+          $('assistantIntegrationId').value = data._id;
+        } catch (e) {
+          setStatus(statusIntegration, 'err', String(e.message || e));
+        }
+      });
+
+      $('btnListAssistants').addEventListener('click', refreshLists);
+
+      $('btnUseAssistant').addEventListener('click', async () => {
+        try {
+          const id = $('assistantsSelect').value;
+          if (!id) return;
+          const data = await api('GET', `/assistants/${id}`);
+          $('assistantId').value = data._id;
+          $('assistantName').value = data.name || '';
+          $('assistantPrompt').value = data.prompt || '';
+          const mcp = (data.mcpServers || [])[0];
+          if (mcp && mcp.server_url) {
+            const m = String(mcp.server_url).match(/\/mcp\/([a-fA-F0-9]{24})$/);
+            if (m) $('assistantIntegrationId').value = m[1];
+          }
+          $('assistantAllowedTools').value = (mcp && Array.isArray(mcp.allowed_tools) ? mcp.allowed_tools.join(',') : '');
+          $('outAssistant').textContent = pretty(data);
+          setStatus(statusAssistant, 'ok', `Carregado assistant ${data._id}`);
+        } catch (e) {
+          setStatus(statusAssistant, 'err', String(e.message || e));
+        }
+      });
+
+      $('btnCreateAssistant').addEventListener('click', async () => {
+        setStatus(statusAssistant, '', '');
+        $('outAssistant').textContent = '';
+        try {
+          const integrationId = $('assistantIntegrationId').value.trim();
+          const allowed = $('assistantAllowedTools').value
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          const body = {
+            name: $('assistantName').value.trim(),
+            prompt: $('assistantPrompt').value,
+            mcpServers: [
+              {
+                type: 'mcp',
+                server_label: 'gateway',
+                server_description: 'MCP Gateway (HTTP integrations)',
+                server_url: `${getBase()}/mcp/${integrationId}`,
+                require_approval: 'never',
+                allowed_tools: allowed.length ? allowed : undefined
+              }
+            ]
+          };
+          const data = await api('POST', '/assistants', body);
+          $('assistantId').value = data._id;
+          $('outAssistant').textContent = pretty(data);
+          setStatus(statusAssistant, 'ok', `Assistant criado: ${data._id}`);
+          await refreshLists();
+        } catch (e) {
+          setStatus(statusAssistant, 'err', String(e.message || e));
+        }
+      });
+
+      $('btnSend').addEventListener('click', async () => {
+        setStatus(statusChat, '', '');
+        $('outChat').textContent = '';
+        try {
+          const body = {
+            clientId: $('clientId').value.trim(),
+            assistantId: $('assistantId').value.trim(),
+            message: $('messageText').value,
+            metadata: {}
+          };
+          localStorage.setItem('clientId', body.clientId);
+          const data = await api('POST', '/message', body);
+          $('conversationId').value = data.conversationId || '';
+          $('outChat').textContent = pretty(data);
+          setStatus(statusChat, 'ok', `OK — step=${data.currentStep || 'null'}`);
+        } catch (e) {
+          setStatus(statusChat, 'err', String(e.message || e));
+        }
+      });
+
+      $('btnGetLogs').addEventListener('click', async () => {
+        setStatus(statusChat, '', '');
+        try {
+          const conversationId = $('conversationId').value.trim();
+          const data = await api('GET', `/admin/logs?conversationId=${conversationId}&limit=200&order=asc`);
+          $('outChat').textContent = pretty(data);
+          setStatus(statusChat, 'ok', `Logs carregados: ${(data.logs || []).length}`);
+        } catch (e) {
+          setStatus(statusChat, 'err', String(e.message || e));
+        }
+      });
+
+      seedDefaults();
+      refreshLists();
+    </script>
+  </body>
+</html>
+

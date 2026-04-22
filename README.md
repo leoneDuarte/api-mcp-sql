@@ -39,6 +39,7 @@ docker compose up -d
 Para não precisar inserir no Mongo manualmente:
 
 - `POST /assistants`
+- `GET /assistants`
 - `GET /assistants/:id`
 
 Exemplo de criação:
@@ -115,3 +116,7 @@ Roda um fluxo completo (cria `integration`, cria `assistant`, chama `/message` e
 ```bash
 E2E_BASE_URL=http://localhost:3000 node scripts/e2e.mjs
 ```
+
+## Frontend (simple)
+
+Um front simples estÃ¡tico estÃ¡ em `public/index.html` e Ã© servido em `GET /`.
