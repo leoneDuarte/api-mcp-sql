@@ -138,7 +138,10 @@ async function callHttpTool(integration: any, tool: any, args: Record<string, un
     throw new Error(`HTTP ${res.status}: ${typeof parsed === 'string' ? parsed : JSON.stringify(parsed)}`);
   }
 
-  return { content: parsed, raw: { status: res.status, headers: slimHeaders(res.headers) } };
+  // MCP tool results are returned as a content array of content items.
+  // We return the upstream JSON/text as a single text content item.
+  const text = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+  return { content: [{ type: 'text', text }], raw: { status: res.status, headers: slimHeaders(res.headers) } };
 }
 
 function slimHeaders(headers: Headers) {
