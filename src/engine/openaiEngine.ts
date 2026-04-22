@@ -73,6 +73,7 @@ export class OpenAiEngine {
       instructions,
       previous_response_id: previousResponseId ?? undefined,
       input: `json\n${input.message}`,
+      tool_choice: coerceToolChoice(input.metadata),
       metadata: {
         clientId: input.clientId,
         assistantId: input.assistantId,
@@ -197,6 +198,7 @@ async function createOpenAiResponse(input: {
   tools: any[];
   previous_response_id?: string;
   input: string;
+  tool_choice?: any;
   metadata?: Record<string, string>;
 }): Promise<ResponsesCreateResult> {
   const body: any = {
@@ -209,6 +211,7 @@ async function createOpenAiResponse(input: {
     max_tool_calls: 20,
     tool_choice: 'auto'
   };
+  if (input.tool_choice) body.tool_choice = input.tool_choice;
   if (input.previous_response_id) body.previous_response_id = input.previous_response_id;
   if (input.metadata) body.metadata = input.metadata;
 
@@ -225,6 +228,21 @@ async function createOpenAiResponse(input: {
     throw new Error(`OpenAI Responses error: ${JSON.stringify(json)}`);
   }
   return json as ResponsesCreateResult;
+}
+
+function coerceToolChoice(metadata?: Record<string, unknown>) {
+  const ForceSchema = z
+    .object({
+      type: z.literal('mcp'),
+      server_label: z.string().min(1),
+      name: z.string().min(1).optional()
+    })
+    .strict();
+
+  const value = (metadata as any)?.forceToolChoice;
+  const parsed = ForceSchema.safeParse(value);
+  if (!parsed.success) return undefined;
+  return parsed.data;
 }
 
 function extractLastAssistantText(output: any[]) {
