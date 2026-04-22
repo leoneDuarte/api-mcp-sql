@@ -7,7 +7,10 @@ import { resolveObjectTemplates, resolveTemplate } from '../../engine/variableRe
 
 const JsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
-  id: z.union([z.string(), z.number()]).transform((v) => String(v)),
+  id: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : String(v))),
   method: z.string(),
   params: z.unknown().optional()
 });
@@ -27,14 +30,34 @@ export async function handleMcpGatewayRequest(integrationId: string, body: unkno
   }
 
   const req = parsed.data;
+  const id = req.id ?? 'notification';
 
   const integration = await IntegrationModel.findById(integrationId).select('+auth.token').lean<IntegrationDoc>().exec();
   if (!integration) {
-    return rpcError(req.id, -32004, 'Integration not found');
+    return rpcError(id, -32004, 'Integration not found');
+  }
+
+  // MCP handshake (Streamable HTTP / HTTP+SSE clients commonly call initialize first)
+  if (req.method === 'initialize') {
+    return ok(id, {
+      protocolVersion: '2024-11-05',
+      capabilities: {
+        tools: {}
+      },
+      serverInfo: {
+        name: `integration:${integration.name}`,
+        version: '1.0.0'
+      }
+    });
+  }
+
+  // MCP initialize notification (no response required, but we return an ok envelope for compatibility)
+  if (req.method === 'notifications/initialized') {
+    return ok(id, {});
   }
 
   if (req.method === 'tools/list') {
-    return ok(req.id, {
+    return ok(id, {
       tools: (integration.tools ?? []).map((t: any) => ({
         name: t.name,
         description: t.description,
@@ -50,23 +73,23 @@ export async function handleMcpGatewayRequest(integrationId: string, body: unkno
 
     const tool = (integration.tools ?? []).find((t: any) => t.name === toolName);
     if (!tool) {
-      return ok(req.id, { isError: true, errorMessage: `Unknown tool: ${toolName}` });
+      return ok(id, { isError: true, errorMessage: `Unknown tool: ${toolName}` });
     }
 
     try {
       const result = await callHttpTool(integration as any, tool as any, args);
-      return ok(req.id, result);
+      return ok(id, result);
     } catch (error) {
-      return ok(req.id, { isError: true, errorMessage: error instanceof Error ? error.message : 'Tool call failed' });
+      return ok(id, { isError: true, errorMessage: error instanceof Error ? error.message : 'Tool call failed' });
     }
   }
 
   // helpful: ping
   if (req.method === 'ping') {
-    return ok(req.id, { ok: true, nonce: randomUUID() });
+    return ok(id, { ok: true, nonce: randomUUID() });
   }
 
-  return rpcError(req.id, -32601, `Method not found: ${req.method}`);
+  return rpcError(id, -32601, `Method not found: ${req.method}`);
 }
 
 async function callHttpTool(integration: any, tool: any, args: Record<string, unknown>) {
@@ -126,4 +149,3 @@ function slimHeaders(headers: Headers) {
   }
   return out;
 }
-
