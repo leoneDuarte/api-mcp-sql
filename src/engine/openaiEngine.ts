@@ -72,10 +72,7 @@ export class OpenAiEngine {
       tools,
       instructions,
       previous_response_id: previousResponseId ?? undefined,
-      input: [
-        { type: 'input_text', text: 'json' },
-        { type: 'input_text', text: input.message }
-      ],
+      input: `json\n${input.message}`,
       metadata: {
         clientId: input.clientId,
         assistantId: input.assistantId,
@@ -199,7 +196,7 @@ async function createOpenAiResponse(input: {
   instructions: string;
   tools: any[];
   previous_response_id?: string;
-  input: any;
+  input: string;
   metadata?: Record<string, string>;
 }): Promise<ResponsesCreateResult> {
   const body: any = {
