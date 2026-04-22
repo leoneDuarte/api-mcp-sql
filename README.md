@@ -100,3 +100,18 @@ Você pode usar texto livre ou um JSON estruturado (DSL) dentro do prompt.
 - `assistants`: prompt do fluxo + configuração de `mcpServers`
 - `conversations`: estado por `clientId + assistantId`
 - `logs`: auditoria completa por `conversationId`
+
+## Admin (logs via API)
+
+- `GET /admin/logs?conversationId=<id>&limit=100&order=desc`
+- Header: `x-admin-token: <ADMIN_TOKEN>`
+
+Configure `ADMIN_TOKEN` no `.env` (local) e nas env vars da Vercel.
+
+## E2E
+
+Roda um fluxo completo (cria `integration`, cria `assistant`, chama `/message` e dispara MCP):
+
+```bash
+E2E_BASE_URL=http://localhost:3000 node scripts/e2e.mjs
+```
