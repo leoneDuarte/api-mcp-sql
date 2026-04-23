@@ -31,6 +31,10 @@ const CreateAssistantSchema = z.object({
   mcpServers: z.array(McpServerSchema).default([])
 });
 
+const UpdateAssistantSchema = CreateAssistantSchema.partial().refine((v) => Object.keys(v).length > 0, {
+  message: 'At least one field must be provided'
+});
+
 export async function createAssistant(req: Request, res: Response) {
   const payload = CreateAssistantSchema.parse(req.body);
   const doc = await AssistantModel.create(payload);
@@ -47,6 +51,15 @@ export async function getAssistant(req: Request, res: Response) {
 export async function listAssistants(_req: Request, res: Response) {
   const docs = await AssistantModel.find({}).sort({ createdAt: -1 }).lean();
   res.json(docs.map(safeAssistant));
+}
+
+export async function updateAssistant(req: Request, res: Response) {
+  const id = z.string().regex(/^[a-fA-F0-9]{24}$/).parse(req.params.id);
+  const payload = UpdateAssistantSchema.parse(req.body);
+
+  const doc = await AssistantModel.findByIdAndUpdate(id, payload, { new: true }).lean();
+  if (!doc) return res.status(404).json({ error: 'not_found' });
+  res.json(safeAssistant(doc));
 }
 
 function safeAssistant(doc: any) {
