@@ -159,29 +159,16 @@
     <header>
       <h1>Console — configurar e testar API</h1>
       <div class="sub">Listagem de assistants, edição de prompt+tools (MCP gateway) e chat com logs.</div>
-      <div class="topbar">
-        <div>
-          <label style="margin-top: 0">Base URL da API</label>
-          <input id="baseUrl" />
-        </div>
-        <div>
-          <label style="margin-top: 0">ADMIN_TOKEN (opcional p/ logs)</label>
-          <input id="adminToken" placeholder="x-admin-token" />
-        </div>
-        <div style="display: grid; align-content: end">
-          <button id="btnHealth" class="secondary">/health</button>
-        </div>
-        <div style="display: grid; align-content: end">
-          <button id="btnReload" class="secondary">Recarregar</button>
-        </div>
-      </div>
       <div id="statusTop" class="status"></div>
     </header>
 
     <main>
       <section class="card">
         <h2>Assistentes</h2>
-        <button id="btnNew" class="secondary">+ Novo assistant</button>
+        <div class="row">
+          <button id="btnNew" class="secondary">+ Novo</button>
+          <button id="btnReload" class="secondary">Recarregar</button>
+        </div>
         <label>Buscar</label>
         <input id="search" placeholder="filtrar por nome..." />
         <div id="assistantsList"></div>
@@ -271,8 +258,10 @@
         </div>
         <div>
           <h2 style="margin-top: 0">Execuções (logs)</h2>
-          <div class="muted" style="margin-top: -6px">
-            Precisa do <code>ADMIN_TOKEN</code> configurado na Vercel + preenchido no topo para usar <code>/admin/logs</code>.
+          <label style="margin-top: 0">ADMIN_TOKEN (opcional p/ logs)</label>
+          <input id="dlgAdminToken" placeholder="x-admin-token" />
+          <div class="muted" style="margin-top: 8px">
+            Para ver logs via API, configure <code>ADMIN_TOKEN</code> na Vercel e cole aqui.
           </div>
           <pre><code id="dlgLogs" class="mono"></code></pre>
           <h2>Estado</h2>
@@ -283,8 +272,6 @@
 
     <script>
       const $ = (id) => document.getElementById(id);
-      const baseUrlEl = $('baseUrl');
-      const adminTokenEl = $('adminToken');
       const statusTop = $('statusTop');
       const statusEditor = $('statusEditor');
       const outDebug = $('outDebug');
@@ -307,14 +294,11 @@
         el.textContent = text || '';
       }
       function pretty(obj) { return JSON.stringify(obj, null, 2); }
-      function getBase() {
-        const v = baseUrlEl.value.trim().replace(/\/+$/, '');
-        return v || window.location.origin;
-      }
+      function getBase() { return window.location.origin; }
       async function api(method, path, body) {
         const url = getBase() + path;
         const headers = { 'content-type': 'application/json' };
-        const adminToken = adminTokenEl.value.trim();
+        const adminToken = $('dlgAdminToken')?.value?.trim?.() || '';
         if (adminToken && path.startsWith('/admin/')) headers['x-admin-token'] = adminToken;
         const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
         const text = await res.text();
@@ -349,9 +333,8 @@
       }
 
       function seedDefaults() {
-        baseUrlEl.value = localStorage.getItem('baseUrl') || window.location.origin;
-        adminTokenEl.value = localStorage.getItem('adminToken') || '';
         $('dlgClientId').value = localStorage.getItem('clientId') || `client-${Math.random().toString(16).slice(2)}`;
+        $('dlgAdminToken').value = localStorage.getItem('adminToken') || '';
 
         setEditorState({
           assistantId: '',
@@ -410,8 +393,6 @@
 
       async function reload() {
         try {
-          localStorage.setItem('baseUrl', baseUrlEl.value.trim());
-          localStorage.setItem('adminToken', adminTokenEl.value.trim());
           const assistants = await api('GET', '/assistants');
           assistantsCache = Array.isArray(assistants) ? assistants : [];
           renderList();
@@ -524,16 +505,6 @@
         }
       }
 
-      $('btnHealth').addEventListener('click', async () => {
-        try {
-          localStorage.setItem('baseUrl', baseUrlEl.value.trim());
-          localStorage.setItem('adminToken', adminTokenEl.value.trim());
-          const data = await api('GET', '/health');
-          setStatus(statusTop, 'ok', '/health OK: ' + pretty(data));
-        } catch (e) {
-          setStatus(statusTop, 'err', String(e.message || e));
-        }
-      });
       $('btnReload').addEventListener('click', reload);
       searchEl.addEventListener('input', renderList);
       $('btnNew').addEventListener('click', () => {
@@ -568,11 +539,12 @@
         dlgBox.scrollTop = dlgBox.scrollHeight;
       }
       async function refreshDlgLogs(conversationId) {
-        const token = adminTokenEl.value.trim();
+        const token = $('dlgAdminToken').value.trim();
         if (!token) {
           dlgLogs.textContent = 'ADMIN_TOKEN vazio.';
           return;
         }
+        localStorage.setItem('adminToken', token);
         const data = await api('GET', `/admin/logs?conversationId=${conversationId}&limit=200&order=asc`);
         dlgLogs.textContent = pretty(data.logs || []);
       }
