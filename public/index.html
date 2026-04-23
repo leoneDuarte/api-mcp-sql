@@ -111,6 +111,47 @@
         font-size: 11px;
         margin-left: 8px;
       }
+      dialog {
+        width: min(980px, calc(100vw - 24px));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 0;
+        background: rgba(10, 14, 30, 0.96);
+        color: var(--text);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+      }
+      dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+      .dlgHead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .dlgHead h3 { margin: 0; font-size: 14px; }
+      .dlgBody { padding: 14px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+      @media (max-width: 980px) { .dlgBody { grid-template-columns: 1fr; } }
+      .chatBox {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 14px;
+        padding: 12px;
+        height: 420px;
+        overflow: auto;
+      }
+      .bubble {
+        padding: 10px 12px;
+        border-radius: 14px;
+        margin: 8px 0;
+        max-width: 82%;
+        white-space: pre-wrap;
+        word-break: break-word;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+      }
+      .bubble.user { margin-left: auto; background: rgba(122, 162, 255, 0.16); border-color: rgba(122, 162, 255, 0.25); }
+      .bubble.assistant { margin-right: auto; background: rgba(255, 255, 255, 0.06); }
+      .chatControls { display: grid; grid-template-columns: 1fr 160px; gap: 10px; margin-top: 10px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
     </style>
   </head>
   <body>
@@ -157,12 +198,13 @@
       </section>
 
       <section class="card">
-        <h2>Assistant (flow + MCP tools)</h2>
+        <h2>Assistant (prompt + tools)</h2>
         <label>Assistants existentes</label>
         <select id="assistantsSelect"></select>
-        <div class="row">
+        <div class="row3">
           <button id="btnUseAssistant" class="secondary">Usar selecionado</button>
           <button id="btnListAssistants" class="secondary">Listar assistants</button>
+          <button id="btnOpenChat" class="secondary">Abrir chat</button>
         </div>
         <div class="row">
           <div>
@@ -174,11 +216,16 @@
             <input id="assistantIntegrationId" placeholder="ObjectId da integration" />
           </div>
         </div>
+        <label>Tools do assistant (JSON array) — opcional (cria integration junto)</label>
+        <textarea id="assistantTools"></textarea>
         <label>Prompt</label>
         <textarea id="assistantPrompt"></textarea>
         <label>Allowed tools (csv)</label>
         <input id="assistantAllowedTools" placeholder="httpbin_get,httpbin_anything" />
-        <button id="btnCreateAssistant">Criar assistant</button>
+        <div class="row">
+          <button id="btnCreateAssistant">Salvar assistant</button>
+          <button id="btnCreateAssistantWithTools" class="secondary">Salvar assistant + tools</button>
+        </div>
         <div id="statusAssistant" class="status"></div>
         <pre><code id="outAssistant"></code></pre>
       </section>
@@ -209,6 +256,47 @@
         <pre><code id="outChat"></code></pre>
       </section>
     </main>
+
+    <dialog id="chatDialog">
+      <div class="dlgHead">
+        <h3>Chat de teste</h3>
+        <button id="btnCloseChat" class="secondary" style="width: 120px">Fechar</button>
+      </div>
+      <div class="dlgBody">
+        <div>
+          <div class="row3">
+            <div>
+              <label>clientId</label>
+              <input id="dlgClientId" />
+            </div>
+            <div>
+              <label>assistantId</label>
+              <input id="dlgAssistantId" />
+            </div>
+            <div>
+              <label>conversationId</label>
+              <input id="dlgConversationId" />
+            </div>
+          </div>
+          <div class="chatBox" id="dlgChatBox"></div>
+          <div class="chatControls">
+            <input id="dlgMessage" placeholder="Digite sua mensagem..." />
+            <button id="btnDlgSend">Enviar</button>
+          </div>
+          <div id="dlgStatus" class="status"></div>
+        </div>
+        <div>
+          <h2 style="margin-top: 0">Execuções (logs)</h2>
+          <div class="hint" style="margin-top: -6px">
+            Mostra o passo a passo do fluxo (state_before/decision/MCP/state_after). Para ver via API, configure
+            <code>ADMIN_TOKEN</code> e preencha acima.
+          </div>
+          <pre><code id="dlgLogs" class="mono"></code></pre>
+          <h2>Estado</h2>
+          <pre><code id="dlgState" class="mono"></code></pre>
+        </div>
+      </div>
+    </dialog>
 
     <script>
       const $ = (id) => document.getElementById(id);
@@ -287,6 +375,7 @@
           '7) Sempre responda em JSON conforme instruções do motor.'
         ].join('\\n');
         $('assistantAllowedTools').value = 'httpbin_get';
+        $('assistantTools').value = $('integrationTools').value;
 
         $('clientId').value = localStorage.getItem('clientId') || `client-${Math.random().toString(16).slice(2)}`;
       }
@@ -398,6 +487,54 @@
         }
       });
 
+      $('btnCreateAssistantWithTools').addEventListener('click', async () => {
+        setStatus(statusAssistant, '', '');
+        $('outAssistant').textContent = '';
+        try {
+          const integrationName = `ui-tools-${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`;
+          const tools = JSON.parse($('assistantTools').value || '[]');
+          if (!Array.isArray(tools) || tools.length === 0) throw new Error('assistantTools precisa ser um JSON array com ao menos 1 tool');
+
+          const integration = await api('POST', '/integrations', {
+            name: integrationName,
+            baseUrl: $('integrationBaseUrl').value.trim() || 'https://httpbin.org',
+            auth: { type: 'none' },
+            tools
+          });
+
+          $('assistantIntegrationId').value = integration._id;
+          $('outIntegration').textContent = pretty(integration);
+          setStatus(statusIntegration, 'ok', `Integration criada: ${integration._id}`);
+
+          const allowed = $('assistantAllowedTools').value
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          const assistant = await api('POST', '/assistants', {
+            name: $('assistantName').value.trim(),
+            prompt: $('assistantPrompt').value,
+            mcpServers: [
+              {
+                type: 'mcp',
+                server_label: 'gateway',
+                server_description: 'MCP Gateway (HTTP integrations)',
+                server_url: `${getBase()}/mcp/${integration._id}`,
+                require_approval: 'never',
+                allowed_tools: allowed.length ? allowed : tools.map((t) => t.name).filter(Boolean)
+              }
+            ]
+          });
+
+          $('assistantId').value = assistant._id;
+          $('outAssistant').textContent = pretty(assistant);
+          setStatus(statusAssistant, 'ok', `Assistant + tools salvos: ${assistant._id}`);
+          await refreshLists();
+        } catch (e) {
+          setStatus(statusAssistant, 'err', String(e.message || e));
+        }
+      });
+
       $('btnSend').addEventListener('click', async () => {
         setStatus(statusChat, '', '');
         $('outChat').textContent = '';
@@ -430,9 +567,74 @@
         }
       });
 
+      // Dialog chat (modal)
+      const dlg = $('chatDialog');
+      const dlgBox = $('dlgChatBox');
+      const dlgLogs = $('dlgLogs');
+      const dlgState = $('dlgState');
+      const dlgStatus = $('dlgStatus');
+
+      function addBubble(role, text) {
+        const div = document.createElement('div');
+        div.className = 'bubble ' + (role === 'user' ? 'user' : 'assistant');
+        div.textContent = text;
+        dlgBox.appendChild(div);
+        dlgBox.scrollTop = dlgBox.scrollHeight;
+      }
+
+      async function refreshDlgLogs(conversationId) {
+        const token = adminTokenEl.value.trim();
+        if (!token) {
+          dlgLogs.textContent = 'ADMIN_TOKEN vazio. Configure na Vercel + preencha no topo para ver logs via API.';
+          return;
+        }
+        const data = await api('GET', `/admin/logs?conversationId=${conversationId}&limit=200&order=asc`);
+        dlgLogs.textContent = pretty(data.logs || []);
+      }
+
+      $('btnOpenChat').addEventListener('click', () => {
+        $('dlgClientId').value = $('clientId').value.trim();
+        $('dlgAssistantId').value = $('assistantId').value.trim();
+        $('dlgConversationId').value = $('conversationId').value.trim();
+        dlgBox.innerHTML = '';
+        dlgLogs.textContent = '';
+        dlgState.textContent = '';
+        setStatus(dlgStatus, '', '');
+        dlg.showModal();
+      });
+
+      $('btnCloseChat').addEventListener('click', () => dlg.close());
+
+      $('btnDlgSend').addEventListener('click', async () => {
+        setStatus(dlgStatus, '', '');
+        try {
+          const clientId = $('dlgClientId').value.trim();
+          const assistantId = $('dlgAssistantId').value.trim();
+          const msg = $('dlgMessage').value;
+          if (!clientId || !assistantId) throw new Error('Preencha clientId e assistantId');
+          if (!msg) return;
+
+          addBubble('user', msg);
+          $('dlgMessage').value = '';
+
+          const data = await api('POST', '/message', { clientId, assistantId, message: msg, metadata: {} });
+          $('dlgConversationId').value = data.conversationId || '';
+          $('conversationId').value = data.conversationId || $('conversationId').value;
+          dlgState.textContent = pretty({ currentStep: data.currentStep, variables: data.variables, openaiResponseId: data.openaiResponseId });
+
+          const msgs = Array.isArray(data.responses) ? data.responses : [];
+          if (msgs.length === 0) addBubble('assistant', '(sem mensagem — veja logs)');
+          for (const t of msgs) addBubble('assistant', t);
+
+          if (data.conversationId) await refreshDlgLogs(data.conversationId);
+          setStatus(dlgStatus, 'ok', `OK — step=${data.currentStep || 'null'}`);
+        } catch (e) {
+          setStatus(dlgStatus, 'err', String(e.message || e));
+        }
+      });
+
       seedDefaults();
       refreshLists();
     </script>
   </body>
 </html>
-
